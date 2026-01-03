@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "gchallenge"
+version = "0.1.0"
+description = "DB Migration REST API for CSV-to-SQL migration with batch support"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+fastapi = "0.109.0"
+uvicorn = "0.27.0"
+sqlalchemy = "2.0.25"
+pandas = "2.1.4"
+python-multipart = "0.0.6"
+pydantic = "2.5.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+httpx = "^0.25.0"
+
+[build-system]
+requires = ["poetry-core>=1.6.0"]
+build-backend = "poetry.core.masonry.api"
