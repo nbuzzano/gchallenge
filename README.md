@@ -268,6 +268,54 @@ The tests are organized into two main files:
 }
 ```
 
+### Metrics Endpoints
+
+#### Hired by Quarter (2021)
+- **GET** `/metrics/hired-by-quarter`
+- Returns the number of employees hired for each job and department in 2021, divided by quarter
+- Ordered alphabetically by department and job
+- Response example:
+```json
+[
+  {
+    "department": "Engineering",
+    "job": "Developer",
+    "Q1": 3,
+    "Q2": 0,
+    "Q3": 7,
+    "Q4": 11
+  },
+  {
+    "department": "Sales",
+    "job": "Manager",
+    "Q1": 2,
+    "Q2": 1,
+    "Q3": 0,
+    "Q4": 2
+  }
+]
+```
+
+#### Departments Above Average Hiring (2021)
+- **GET** `/metrics/departments-above-average`
+- Returns departments that hired more employees than the mean in 2021
+- Ordered by number of employees hired (descending)
+- Response example:
+```json
+[
+  {
+    "id": 7,
+    "department": "Engineering",
+    "hired": 45
+  },
+  {
+    "id": 9,
+    "department": "Sales",
+    "hired": 12
+  }
+]
+```
+
 ## 📂 Project Structure
 
 ```
@@ -328,6 +376,16 @@ curl -X POST "http://localhost:8000/batch/departments" \
       {"id": 101, "department": "Innovation"}
     ]
   }'
+```
+
+**Get hiring metrics by quarter:**
+```bash
+curl -X GET "http://localhost:8000/metrics/hired-by-quarter"
+```
+
+**Get departments above average hiring:**
+```bash
+curl -X GET "http://localhost:8000/metrics/departments-above-average"
 ```
 
 ### Using Python requests
