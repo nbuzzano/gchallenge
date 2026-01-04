@@ -270,10 +270,13 @@ The tests are organized into two main files:
 
 ### Metrics Endpoints
 
+**Note:** Metrics queries are stored in separate SQL files in the `sql/` directory for maintainability and reusability. The endpoints load and execute these queries dynamically.
+
 #### Hired by Quarter (2021)
 - **GET** `/metrics/hired-by-quarter`
 - Returns the number of employees hired for each job and department in 2021, divided by quarter
 - Ordered alphabetically by department and job
+- SQL Query: [sql/hired_by_quarter.sql](sql/hired_by_quarter.sql)
 - Response example:
 ```json
 [
@@ -300,6 +303,7 @@ The tests are organized into two main files:
 - **GET** `/metrics/departments-above-average`
 - Returns departments that hired more employees than the mean in 2021
 - Ordered by number of employees hired (descending)
+- SQL Query: [sql/departments_above_average.sql](sql/departments_above_average.sql)
 - Response example:
 ```json
 [
@@ -326,17 +330,22 @@ gchallenge/
 │   ├── database.py       # Database models and connection
 │   ├── schemas.py        # Pydantic schemas for validation
 │   └── csv_service.py    # CSV processing logic
+├── sql/
+│   ├── hired_by_quarter.sql              # Query for quarterly hiring metrics
+│   └── departments_above_average.sql     # Query for above-average departments
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py       # Pytest fixtures and configuration
 │   ├── test_main.py      # API endpoint tests
-│   └── test_csv_service.py # CSV service unit tests
+│   ├── test_csv_service.py # CSV service unit tests
+│   └── test_metrics.py   # Metrics endpoint tests
 ├── data/
 │   ├── departments.csv   # Sample departments data
 │   ├── jobs.csv          # Sample jobs data
 │   └── employees.csv     # Sample employees data
+├── docker-compose.yml   # PostgreSQL container configuration
+├── .env.example         # Environment variables template
 ├── pyproject.toml       # Poetry project and dependency config
-├── requirements.txt     # (Optional) export via `poetry export`
 ├── .gitignore           # Git ignore rules
 └── README.md            # This file
 ```
