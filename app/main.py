@@ -1,13 +1,25 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, case, and_
+from sqlalchemy import text
 from typing import List
-from app.database import get_db, create_tables, Department, Job, Employee
+from app.database import get_db, create_tables
 from app.csv_service import CSVService
 from app.schemas import (
     DepartmentBatch, JobBatch, EmployeeBatch, 
     UploadResponse, HiredByQuarterSchema, DepartmentHiringMetricSchema
 )
+
+# Get the base directory for SQL files
+SQL_DIR = Path(__file__).parent.parent / "sql"
+
+
+def load_sql_query(filename: str) -> str:
+    """Load SQL query from file"""
+    sql_file = SQL_DIR / filename
+    with open(sql_file, 'r') as f:
+        return f.read()
 
 app = FastAPI(
     title="DB Migration REST API",
@@ -219,25 +231,12 @@ def get_hired_by_quarter(db: Session = Depends(get_db)):
     - job: Job title
     - Q1, Q2, Q3, Q4: Number of employees hired in each quarter
     """
-    # Query using SQLAlchemy ORM for database compatibility
-    results = db.query(
-        Department.department,
-        Job.job,
-        func.sum(case((func.substr(Employee.datetime, 6, 2).in_(['01', '02', '03']), 1), else_=0)).label('Q1'),
-        func.sum(case((func.substr(Employee.datetime, 6, 2).in_(['04', '05', '06']), 1), else_=0)).label('Q2'),
-        func.sum(case((func.substr(Employee.datetime, 6, 2).in_(['07', '08', '09']), 1), else_=0)).label('Q3'),
-        func.sum(case((func.substr(Employee.datetime, 6, 2).in_(['10', '11', '12']), 1), else_=0)).label('Q4')
-    ).join(
-        Department, Employee.department_id == Department.id
-    ).join(
-        Job, Employee.job_id == Job.id
-    ).filter(
-        func.substr(Employee.datetime, 1, 4) == '2021'
-    ).group_by(
-        Department.department, Job.job
-    ).order_by(
-        Department.department.asc(), Job.job.asc()
-    ).all()
+    # Load SQL query from file
+    query_str = load_sql_query("hired_by_quarter.sql")
+    query = text(query_str)
+    
+    result = db.execute(query)
+    rows = result.fetchall()
     
     return [
         HiredByQuarterSchema(
@@ -248,7 +247,7 @@ def get_hired_by_quarter(db: Session = Depends(get_db)):
             Q3=row[4],
             Q4=row[5]
         )
-        for row in results
+        for row in rows
     ]
 
 
@@ -263,34 +262,12 @@ def get_departments_above_average(db: Session = Depends(get_db)):
     - department: Department name
     - hired: Number of employees hired in 2021
     """
-    # Subquery to count hires per department in 2021
-    dept_hires = db.query(
-        Department.id,
-        Department.department,
-        func.count(Employee.id).label('hired')
-    ).outerjoin(
-        Employee, 
-        and_(
-            Department.id == Employee.department_id,
-            func.substr(Employee.datetime, 1, 4) == '2021'
-        )
-    ).group_by(
-        Department.id, Department.department
-    ).subquery()
+    # Load SQL query from file
+    query_str = load_sql_query("departments_above_average.sql")
+    query = text(query_str)
     
-    # Calculate average
-    avg_hired = db.query(func.avg(dept_hires.c.hired)).scalar() or 0
-    
-    # Get departments above average
-    results = db.query(
-        dept_hires.c.id,
-        dept_hires.c.department,
-        dept_hires.c.hired
-    ).filter(
-        dept_hires.c.hired > avg_hired
-    ).order_by(
-        dept_hires.c.hired.desc()
-    ).all()
+    result = db.execute(query)
+    rows = result.fetchall()
     
     return [
         DepartmentHiringMetricSchema(
@@ -298,5 +275,5 @@ def get_departments_above_average(db: Session = Depends(get_db)):
             department=row[1],
             hired=row[2]
         )
-        for row in results
+        for row in rows
     ]
