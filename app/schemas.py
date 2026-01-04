@@ -69,3 +69,21 @@ class EmployeeBatch(BaseModel):
 class UploadResponse(BaseModel):
     message: str
     rows_inserted: int
+
+
+# Metrics Schemas
+class HiredByQuarterSchema(BaseModel):
+    """Schema for employees hired by department and job per quarter"""
+    department: str
+    job: str
+    Q1: int
+    Q2: int
+    Q3: int
+    Q4: int
+
+
+class DepartmentHiringMetricSchema(BaseModel):
+    """Schema for departments with hiring above average"""
+    id: int
+    department: str
+    hired: int
