@@ -8,10 +8,7 @@ This document outlines the strategic approach for deploying the DB Migration RES
 2. [AWS Services Selection](#aws-services-selection)
 3. [Infrastructure as Code Approach](#infrastructure-as-code-approach)
 4. [GitOps & Automation Strategy](#gitops--automation-strategy)
-5. [Security & Compliance](#security--compliance)
-6. [Monitoring & Observability](#monitoring--observability)
-7. [Disaster Recovery Planning](#disaster-recovery-planning)
-8. [Cost Management](#cost-management)
+5. [Disaster Recovery Planning](#disaster-recovery-planning)
 
 ---
 
