@@ -6,7 +6,7 @@ A REST API for migrating historical data from CSV files to a SQL database with b
 
 This project provides a local REST API that:
 - ✅ Receives historical data from CSV files
-- ✅ Uploads CSV files to a SQL database (SQLite)
+- ✅ Uploads CSV files to a SQL database (PostgreSQL)
 - ✅ Supports batch transactions (1 to 1000 rows per request)
 - ✅ Handles 3 tables: `departments`, `jobs`, and `employees`
 
@@ -38,6 +38,7 @@ This project provides a local REST API that:
 ### Prerequisites
 - Python 3.8 or higher
 - Poetry 1.6+ (https://python-poetry.org/docs/#installation)
+- Docker & Docker Compose (for PostgreSQL database)
 
 ### Setup
 
@@ -47,12 +48,19 @@ git clone <github-repo-url>
 cd gchallenge
 ```
 
-2. Install dependencies with Poetry (creates a virtualenv automatically):
+2. Start PostgreSQL database using Docker Compose:
+```bash
+docker-compose up -d
+```
+
+This will start a PostgreSQL container on port 5432. Wait a few seconds for the database to be ready.
+
+3. Install dependencies with Poetry (creates a virtualenv automatically):
 ```bash
 poetry install
 ```
 
-3. (Optional) Spawn a shell inside the Poetry environment:
+4. (Optional) Spawn a shell inside the Poetry environment:
 ```bash
 poetry shell
 ```
@@ -61,6 +69,39 @@ If you need a `requirements.txt` (e.g., for CI), export it from Poetry:
 ```bash
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 ```
+
+### Database Configuration
+
+The application uses PostgreSQL by default. The connection is configured via the `DATABASE_URL` environment variable:
+
+**Default (local development):**
+```
+postgresql://postgres:postgres@localhost:5432/migration_db
+```
+
+**Custom configuration:**
+Create a `.env` file (see `.env.example`) or set the environment variable:
+```bash
+export DATABASE_URL="postgresql://username:password@host:port/database_name"
+```
+
+### Database: Testing vs Production
+
+⚠️ **Important:** The application uses **different databases** for testing and production:
+
+- **Testing**: Uses **SQLite in-memory** database (`sqlite:///:memory:`)
+  - Fast and isolated tests
+  - No external dependencies required
+  - Data is not persisted between test runs
+  - Configured in [tests/conftest.py](tests/conftest.py)
+
+- **Production/Local Development**: Uses **PostgreSQL**
+  - Requires PostgreSQL running (via Docker Compose or installed locally)
+  - Data persists across application restarts
+  - Compatible with AWS RDS Aurora PostgreSQL for cloud deployment
+  - Configured via `DATABASE_URL` environment variable
+
+This separation ensures that tests run quickly and independently without requiring a PostgreSQL instance, while the main application can use PostgreSQL for production-grade reliability and features.
 
 ## 🏃 Running the API
 
@@ -77,6 +118,20 @@ uvicorn app.main:app --reload
 The API will be available at: `http://localhost:8000`
 
 Interactive API documentation: `http://localhost:8000/docs`
+
+**Note:** The database tables will be created automatically on the first startup.
+
+## 🛑 Stopping the Services
+
+To stop the PostgreSQL database:
+```bash
+docker-compose down
+```
+
+To stop and remove all data (including volumes):
+```bash
+docker-compose down -v
+```
 
 ## 🧪 Running Tests
 
@@ -305,21 +360,23 @@ print(response.json())
 ## ✅ Features
 
 - **FastAPI Framework**: Modern, fast, with automatic API documentation
-- **SQLite Database**: Lightweight SQL database, no external dependencies
+- **PostgreSQL Database**: Production-ready relational database (compatible with AWS RDS)
 - **Data Validation**: Automatic validation using Pydantic schemas
 - **Batch Size Validation**: Ensures 1-1000 rows per request
 - **Error Handling**: Comprehensive error messages
 - **CSV Support**: Comma-separated file parsing with pandas
 - **Interactive Documentation**: Swagger UI at `/docs`
+- **Docker Compose**: Easy local database setup
 
 ## 🧪 Testing with Sample Data
 
 The project includes sample CSV files in the `data/` directory:
 
-1. Start the server: `uvicorn app.main:app --reload`
-2. Open your browser at `http://localhost:8000/docs`
-3. Use the interactive Swagger UI to test endpoints
-4. Or use the curl commands from the examples above
+1. Start PostgreSQL: `docker compose up -d`
+2. Start the server: `poetry run uvicorn app.main:app --reload`
+3. Open your browser at `http://localhost:8000/docs`
+4. Use the interactive Swagger UI to test endpoints
+5. Or use the curl commands from the examples above
 
 ## 🔧 Technologies Used
 
@@ -328,7 +385,8 @@ The project includes sample CSV files in the `data/` directory:
 - **Pydantic**: Data validation using Python type annotations
 - **Pandas**: Data manipulation and CSV processing
 - **Uvicorn**: ASGI server for running the application
-- **SQLite**: SQL database engine
+- **PostgreSQL**: Production-grade SQL database engine
+- **Docker Compose**: Container orchestration for local development
 
 ## 📝 CSV File Format
 
@@ -354,18 +412,100 @@ All CSV files must be comma-separated and follow these formats:
 2,Jane Smith,2021-02-20T10:30:00,2,4
 ```
 
+## 🔍 Database Validation
+
+After uploading data, you can validate the records directly in PostgreSQL:
+
+### Connect to PostgreSQL
+
+**Using Docker exec:**
+```bash
+docker exec -it migration_postgres psql -U postgres -d migration_db
+```
+
+**Using psql directly (if PostgreSQL client is installed):**
+```bash
+psql -h localhost -U postgres -d migration_db
+```
+
+Password: `postgres`
+
+### Useful SQL Queries
+
+**View all tables:**
+```sql
+\dt
+```
+
+**Count records in each table:**
+```sql
+SELECT COUNT(*) FROM departments;
+SELECT COUNT(*) FROM jobs;
+SELECT COUNT(*) FROM employees;
+```
+
+**View departments:**
+```sql
+SELECT * FROM departments ORDER BY id LIMIT 10;
+```
+
+**View jobs:**
+```sql
+SELECT * FROM jobs ORDER BY id LIMIT 10;
+```
+
+**View employees:**
+```sql
+SELECT * FROM employees ORDER BY id LIMIT 10;
+```
+
+**View employees with department and job names:**
+```sql
+SELECT 
+    e.id,
+    e.name,
+    e.datetime,
+    d.department,
+    j.job
+FROM employees e
+LEFT JOIN departments d ON e.department_id = d.id
+LEFT JOIN jobs j ON e.job_id = j.id
+ORDER BY e.id
+LIMIT 10;
+```
+
+**Verify data integrity:**
+```sql
+-- Check for employees with invalid department_id
+SELECT COUNT(*) FROM employees e
+WHERE NOT EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id);
+
+-- Check for employees with invalid job_id
+SELECT COUNT(*) FROM employees e
+WHERE NOT EXISTS (SELECT 1 FROM jobs j WHERE j.id = e.job_id);
+```
+
+**Exit psql:**
+```sql
+\q
+```
+
+### Using pgAdmin or DBeaver
+
+You can also use GUI tools to connect to the database:
+
+**Connection details:**
+- Host: `localhost`
+- Port: `5432`
+- Database: `migration_db`
+- Username: `postgres`
+- Password: `postgres`
+
 ## ⚠️ Important Notes
 
 - Batch size must be between 1 and 1000 rows per request
 - CSV files should not include headers
 - All datetime values should be in ISO 8601 format
-- The database file (`migration.db`) is created automatically on first run
-- Foreign key constraints are not enforced in SQLite by default
-
-## 🤝 Contributing
-
-This project was developed as part of a database migration challenge. Feel free to fork and improve!
-
-## 📄 License
-
-MIT License - Feel free to use this project for your own purposes.
+- PostgreSQL database is created automatically by Docker Compose
+- Database tables are created automatically on first API startup
+- Data persists in a Docker volume (use `docker compose down -v` to clear)
