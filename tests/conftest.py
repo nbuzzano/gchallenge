@@ -12,7 +12,8 @@ from app.database import Base, get_db
 @pytest.fixture(scope="session")
 def db_engine():
     """Create an in-memory SQLite database for testing"""
-    engine = create_engine("sqlite:///:memory:")
+    # Force SQLite for testing
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
